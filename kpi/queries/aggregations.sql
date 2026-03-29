@@ -36,22 +36,34 @@ ORDER BY gross_revenue DESC;
 -- =============================================================================
 -- Q4: TOP 5 BEST-SELLING PRODUCTS
 -- Ranked by units sold. Includes revenue and current stock level.
+-- CTE separates the aggregation from the ranking so each step is clear.
 -- =============================================================================
+WITH product_sales AS (
+    SELECT
+        p.product_id,
+        p.product_name,
+        sub.subcategory_name,
+        cat.category_name,
+        i.quantity_on_hand                                  AS current_stock,
+        SUM(oi.quantity)                                    AS units_sold,
+        SUM(oi.quantity * oi.unit_price_at_purchase)        AS total_revenue
+    FROM order_items   oi
+    JOIN products      p   ON p.product_id       = oi.product_id
+    JOIN subcategories sub ON sub.subcategory_id  = p.subcategory_id
+    JOIN categories    cat ON cat.category_id    = sub.category_id
+    JOIN inventory     i   ON i.product_id       = p.product_id
+    GROUP BY p.product_id, p.product_name, sub.subcategory_name,
+             cat.category_name, i.quantity_on_hand
+)
 SELECT
-    RANK() OVER (ORDER BY SUM(oi.quantity) DESC)        AS sales_rank,
-    p.product_name,
-    sub.subcategory_name,
-    cat.category_name,
-    SUM(oi.quantity)                                    AS units_sold,
-    SUM(oi.quantity * oi.unit_price_at_purchase)        AS total_revenue,
-    i.quantity_on_hand                                  AS current_stock
-FROM order_items   oi
-JOIN products      p   ON p.product_id       = oi.product_id
-JOIN subcategories sub ON sub.subcategory_id  = p.subcategory_id
-JOIN categories    cat ON cat.category_id    = sub.category_id
-JOIN inventory     i   ON i.product_id       = p.product_id
-GROUP BY p.product_id, p.product_name, sub.subcategory_name,
-         cat.category_name, i.quantity_on_hand
+    RANK() OVER (ORDER BY units_sold DESC)              AS sales_rank,
+    product_name,
+    subcategory_name,
+    category_name,
+    units_sold,
+    total_revenue,
+    current_stock
+FROM product_sales
 ORDER BY units_sold DESC
 LIMIT 5;
 

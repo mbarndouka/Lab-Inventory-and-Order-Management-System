@@ -25,24 +25,35 @@ ORDER BY o.order_date, o.order_id;
 -- =============================================================================
 -- Q8: PRODUCT SALES RANK WITHIN EACH CATEGORY (RANK + PARTITION)
 -- RANK() OVER (PARTITION BY category) restarts the ranking for each category.
--- Identifies the top performer in each category independently.
+-- CTE aggregates revenue first; outer query ranks on clean named columns.
 -- =============================================================================
+WITH category_revenue AS (
+    SELECT
+        cat.category_id,
+        cat.category_name,
+        p.product_id,
+        p.product_name,
+        SUM(oi.quantity)                                    AS units_sold,
+        SUM(oi.quantity * oi.unit_price_at_purchase)        AS revenue
+    FROM order_items   oi
+    JOIN products      p   ON p.product_id       = oi.product_id
+    JOIN subcategories sub ON sub.subcategory_id  = p.subcategory_id
+    JOIN categories    cat ON cat.category_id    = sub.category_id
+    GROUP BY cat.category_id, cat.category_name,
+             p.product_id, p.product_name
+)
 SELECT
-    cat.category_name,
-    p.product_name,
-    SUM(oi.quantity)                                    AS units_sold,
-    SUM(oi.quantity * oi.unit_price_at_purchase)        AS revenue,
+    category_name,
+    product_name,
+    units_sold,
+    revenue,
     RANK()
         OVER (
-            PARTITION BY cat.category_id
-            ORDER BY SUM(oi.quantity * oi.unit_price_at_purchase) DESC
+            PARTITION BY category_id
+            ORDER BY revenue DESC
         )                                               AS rank_in_category
-FROM order_items   oi
-JOIN products      p   ON p.product_id       = oi.product_id
-JOIN subcategories sub ON sub.subcategory_id  = p.subcategory_id
-JOIN categories    cat ON cat.category_id    = sub.category_id
-GROUP BY cat.category_id, cat.category_name, p.product_id, p.product_name
-ORDER BY cat.category_name, rank_in_category;
+FROM category_revenue
+ORDER BY category_name, rank_in_category;
 
 
 -- =============================================================================
@@ -96,21 +107,28 @@ ORDER BY month DESC;
 -- =============================================================================
 -- Q_ORDER_FREQUENCY: CUSTOMER ORDER FREQUENCY USING LAG
 -- Shows each order alongside the customer's previous order date.
+-- CTE computes LAG once — outer query reuses previous_order_date by name,
+-- eliminating duplication and keeping the subtraction clean.
 -- =============================================================================
-SELECT
-    c.full_name                                           AS customer,
-    o.order_id,
-    o.order_date::DATE                                    AS current_order_date,
-    LAG(o.order_date::DATE)
-        OVER (PARTITION BY o.customer_id ORDER BY o.order_date)
-                                                          AS previous_order_date,
-    (o.order_date::DATE -
+WITH order_history AS (
+    SELECT
+        o.customer_id,
+        o.order_id,
+        o.order_date::DATE                                  AS current_order_date,
         LAG(o.order_date::DATE)
-        OVER (PARTITION BY o.customer_id ORDER BY o.order_date))
-                                                          AS days_since_last_order
-FROM orders    o
-JOIN customers c ON c.customer_id = o.customer_id
-WHERE o.status NOT IN ('cancelled', 'refunded')
-ORDER BY c.full_name, o.order_date;
+            OVER (PARTITION BY o.customer_id
+                  ORDER BY o.order_date)                    AS previous_order_date
+    FROM orders o
+    WHERE o.status NOT IN ('cancelled', 'refunded')
+)
+SELECT
+    c.full_name                                             AS customer,
+    oh.order_id,
+    oh.current_order_date,
+    oh.previous_order_date,
+    (oh.current_order_date - oh.previous_order_date)        AS days_since_last_order
+FROM order_history oh
+JOIN customers c ON c.customer_id = oh.customer_id
+ORDER BY c.full_name, oh.current_order_date;
 
  
