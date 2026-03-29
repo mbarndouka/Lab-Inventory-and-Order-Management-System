@@ -1,0 +1,9 @@
+# Root-only ignores (patterns prefixed with / only match files in this directory)
+/.env
+/*.log
+/*.tmp
+/*.bak
+
+# IDE / editor directories
+.idea/
+.vscode/
