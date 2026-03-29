@@ -40,20 +40,22 @@ This project models a complete inventory and order management system with:
 .
 ├── schema_ddl.sql          # Full DDL: tables, indexes, constraints, triggers
 ├── seeddb.sql              # Sample data for development/testing
+├── Kpi.sql                 # Top-level KPI queries
+├── roles_permissions.sql   # Role definitions and GRANT statements
+├── rls_policies.sql        # Row-level security policies
 ├── docker-compose.yaml     # PostgreSQL 17 container setup
 ├── run_all.sh              # Script to execute all SQL files in order
-├── views/
-│   ├── vw_order_summary.sql        # Order-level summary view
-│   └── vw_product_performance.sql  # Product sales performance view
-├── procedures/
-│   ├── sp_place_order.sql          # Stored procedure: place a new order
-│   ├── sp_cancel_order.sql         # Stored procedure: cancel an order
-│   └── sp_customer_report.sql      # Stored procedure: customer activity report
-└── queries/
-    ├── joins.sql               # Multi-table JOIN examples (up to 7 tables)
-    ├── aggregations.sql        # GROUP BY, HAVING, aggregate functions
-    ├── window_functions.sql    # ROW_NUMBER, RANK, running totals, etc.
-    └── alerts.sql              # Inventory and order alert queries
+└── kpi/
+    ├── views/
+    │   └── vw_customer_sales_summary.sql   # Customer sales summary view
+    ├── procedures/
+    │   ├── sp_process_new_order.sql        # Stored procedure: process a new order
+    │   └── audit_log.sql                   # Audit logging procedure
+    └── queries/
+        ├── joins.sql               # Multi-table JOIN examples (up to 7 tables)
+        ├── aggregations.sql        # GROUP BY, HAVING, aggregate functions
+        ├── window_functions.sql    # ROW_NUMBER, RANK, running totals, etc.
+        └── alerts.sql              # Inventory and order alert queries
 ```
 
 ## Getting Started
@@ -70,7 +72,7 @@ Create a `.env` file in the project root:
 ```env
 POSTGRES_USER=your_user
 POSTGRES_PASSWORD=your_password
-POSTGRES_DB=oms
+POSTGRES_DB=amalitech_db
 ```
 
 Then start the container:
@@ -82,8 +84,8 @@ docker compose up -d
 ### 2. Initialize the Schema and Seed Data
 
 ```bash
-psql -h localhost -U your_user -d oms -f schema_ddl.sql
-psql -h localhost -U your_user -d oms -f seeddb.sql
+psql -h localhost -U your_user -d amalitech_db -f schema_ddl.sql
+psql -h localhost -U your_user -d amalitech_db -f seeddb.sql
 ```
 
 Or use the convenience script (update paths in `run_all.sh` as needed):
@@ -92,19 +94,19 @@ Or use the convenience script (update paths in `run_all.sh` as needed):
 bash run_all.sh
 ```
 
-### 3. Load Views and Procedures
+### 3. Load Roles, Policies, Views, and Procedures
 
 ```bash
-psql -h localhost -U your_user -d oms -f views/vw_order_summary.sql
-psql -h localhost -U your_user -d oms -f views/vw_product_performance.sql
-psql -h localhost -U your_user -d oms -f procedures/sp_place_order.sql
-psql -h localhost -U your_user -d oms -f procedures/sp_cancel_order.sql
-psql -h localhost -U your_user -d oms -f procedures/sp_customer_report.sql
+psql -h localhost -U your_user -d amalitech_db -f roles_permissions.sql
+psql -h localhost -U your_user -d amalitech_db -f rls_policies.sql
+psql -h localhost -U your_user -d amalitech_db -f kpi/views/vw_customer_sales_summary.sql
+psql -h localhost -U your_user -d amalitech_db -f kpi/procedures/sp_process_new_order.sql
+psql -h localhost -U your_user -d amalitech_db -f kpi/procedures/audit_log.sql
 ```
 
 ## Query Examples
 
-The `queries/` directory contains annotated SQL demonstrating:
+The `kpi/queries/` directory contains annotated SQL demonstrating:
 
 - **Joins** — Full order history across 7 tables using INNER and LEFT JOINs
 - **Aggregations** — Revenue by category, top customers, order frequency
